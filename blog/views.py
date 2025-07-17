@@ -28,27 +28,31 @@ def serialize_tag(tag):
     }
 
 
-def index(request):
-    most_popular_posts = (
+def get_posts_with_likes_and_comments(order_by_field, limit=None):
+    posts = (
         Post.objects
-        .annotate(
-            likes_count=Count('likes', distinct=True),
-            comments_count=Count('comments', distinct=True)
-        )
-        .order_by('-likes_count')
+        .annotate(likes_count=Count('likes'))
         .select_related('author')
-    )[:5]
-
-    fresh_posts = (
-        Post.objects
-        .order_by('published_at')
-        .prefetch_related('author')
-        .annotate(
-            likes_count=Count('likes', distinct=True),
-            comments_count=Count('comments', distinct=True)
-        )
+        .order_by(order_by_field)
     )
-    most_fresh_posts = list(fresh_posts)[-5:]
+
+    posts_ids = [post.id for post in posts]
+    posts_with_comments = (
+        Post.objects
+        .filter(id__in=posts_ids)
+        .annotate(comments_count=Count('comments'))
+    )
+    ids_and_comments = posts_with_comments.values_list('id', 'comments_count')
+    count_for_id = dict(ids_and_comments)
+
+    for post in posts:
+        post.comments_count = count_for_id[post.id]
+    return list(posts)[:limit] if limit else list(posts)
+
+
+def index(request):
+    most_popular_posts = get_posts_with_likes_and_comments('-likes_count', 5)
+    most_fresh_posts = get_posts_with_likes_and_comments('-published_at', 5)
 
     most_popular_tags = (
         Tag.objects

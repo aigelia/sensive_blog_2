@@ -28,13 +28,16 @@ def serialize_tag(tag):
     }
 
 
-def get_posts_with_likes_and_comments(order_by_field, limit=None):
+def get_necessary_posts(order_by_field, limit=None, tag=None):
     posts = (
         Post.objects
         .annotate(likes_count=Count('likes'))
         .select_related('author')
-        .order_by(order_by_field)
+        .prefetch_related('tags')
     )
+    if tag:
+        posts = posts.filter(tags=tag)
+    posts = posts.order_by(order_by_field)
 
     posts_ids = [post.id for post in posts]
     posts_with_comments = (
@@ -51,15 +54,10 @@ def get_posts_with_likes_and_comments(order_by_field, limit=None):
 
 
 def index(request):
-    most_popular_posts = get_posts_with_likes_and_comments('-likes_count', 5)
-    most_fresh_posts = get_posts_with_likes_and_comments('-published_at', 5)
+    most_popular_posts = get_necessary_posts('-likes_count', 5)
+    most_fresh_posts = get_necessary_posts('-published_at', 5)
 
-    most_popular_tags = (
-        Tag.objects
-        .annotate(posts_with_tag=Count('posts'))
-        .order_by('-posts_with_tag')
-        .prefetch_related('posts')
-    )[:5]
+    most_popular_tags = Tag.objects.popular()[:5]
 
     context = {
         'most_popular_posts': [
@@ -98,9 +96,7 @@ def post_detail(request, slug):
         'tags': [serialize_tag(tag) for tag in related_tags],
     }
 
-    all_tags = Tag.objects.all()
-    popular_tags = sorted(all_tags, key=get_related_posts_count)
-    most_popular_tags = popular_tags[-5:]
+    most_popular_tags = Tag.objects.popular()[:5]
 
     most_popular_posts = []  # TODO. Как это посчитать?
 
@@ -117,13 +113,10 @@ def post_detail(request, slug):
 def tag_filter(request, tag_title):
     tag = Tag.objects.get(title=tag_title)
 
-    all_tags = Tag.objects.all()
-    popular_tags = sorted(all_tags, key=get_related_posts_count)
-    most_popular_tags = popular_tags[-5:]
+    most_popular_tags = Tag.objects.popular()[:5]
+    most_popular_posts = get_necessary_posts('-likes_count', limit=5)
 
-    most_popular_posts = []  # TODO. Как это посчитать?
-
-    related_posts = tag.posts.all()[:20]
+    related_posts = get_necessary_posts('-published_at', limit=20, tag=tag)
 
     context = {
         'tag': tag.title,

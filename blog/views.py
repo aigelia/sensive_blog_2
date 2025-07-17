@@ -8,7 +8,7 @@ def get_related_posts_count(tag):
 
 
 def serialize_post(post):
-    tags = post.tags.all().annotate(posts_with_tag=Count('posts'))
+    tags = list(post.tags.all().annotate(posts_with_tag=Count('posts')))
     return {
         'title': post.title,
         'teaser_text': post.text[:200],
@@ -18,7 +18,7 @@ def serialize_post(post):
         'published_at': post.published_at,
         'slug': post.slug,
         'tags': [serialize_tag(tag) for tag in tags],
-        'first_tag_title': post.tags.all()[0].title,
+        'first_tag_title': tags[0].title if tags else None,
     }
 
 

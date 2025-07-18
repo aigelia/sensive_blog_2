@@ -4,7 +4,6 @@ from blog.models import Comment, Post, Tag
 
 
 def serialize_post(post):
-    tags = post.tags.all()
     return {
         'title': post.title,
         'teaser_text': post.text[:200],
@@ -13,8 +12,8 @@ def serialize_post(post):
         'image_url': post.image.url if post.image else None,
         'published_at': post.published_at,
         'slug': post.slug,
-        'tags': [serialize_tag(tag) for tag in tags],
-        'first_tag_title': tags[0].title if tags else None,
+        'tags': [serialize_tag(tag) for tag in post.tags.all()],
+        'first_tag_title': post.tags.all()[0].title,
     }
 
 
@@ -58,6 +57,10 @@ def index(request):
 
 
 def post_detail(request, slug):
+    tag_prefetch = Prefetch(
+        'tags',
+        queryset=Tag.objects.annotate(posts_with_tag=Count('posts'))
+    )
     post = Post.objects.get(slug=slug)
     comments = Comment.objects.filter(post=post)
     serialized_comments = []
@@ -87,10 +90,9 @@ def post_detail(request, slug):
     most_popular_tags = Tag.objects.popular()[:5]
 
     most_popular_posts = (
-        Post.objects
-        .popular()
+        Post.objects.popular()
         .select_related('author')
-        .prefetch_related('tags')[:5]
+        .prefetch_related(tag_prefetch)[:5]
         .fetch_with_comments_count()
     )
 
@@ -105,15 +107,18 @@ def post_detail(request, slug):
 
 
 def tag_filter(request, tag_title):
+    tag_prefetch = Prefetch(
+        'tags',
+        queryset=Tag.objects.annotate(posts_with_tag=Count('posts'))
+    )
     tag = Tag.objects.get(title=tag_title)
 
     most_popular_tags = Tag.objects.popular()[:5]
 
     most_popular_posts = (
-        Post.objects
-        .popular()
+        Post.objects.popular()
         .select_related('author')
-        .prefetch_related('tags')[:5]
+        .prefetch_related(tag_prefetch)[:5]
         .fetch_with_comments_count()
     )
 
@@ -122,7 +127,7 @@ def tag_filter(request, tag_title):
         .filter(tags=tag)
         .order_by('-published_at')
         .select_related('author')
-        .prefetch_related('tags')[:20]
+        .prefetch_related(tag_prefetch)[:20]
         .fetch_with_comments_count()
     )
 

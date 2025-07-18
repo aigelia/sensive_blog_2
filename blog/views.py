@@ -26,7 +26,8 @@ def serialize_tag(tag):
 
 def index(request):
     most_popular_posts = (
-        Post.objects.popular()
+        Post.objects
+        .popular()
         .select_related('author')
         .tag_prefetch()[:5]
         .fetch_with_comments_count()
@@ -64,13 +65,14 @@ def post_detail(request, slug):
         .filter(post=post)
         .select_related('author')
     )
-    serialized_comments = []
-    for comment in comments:
-        serialized_comments.append({
+    serialized_comments = [
+        {
             'text': comment.text,
             'published_at': comment.published_at,
             'author': comment.author.username,
-        })
+        }
+        for comment in comments
+    ]
 
     related_tags = Tag.objects.filter(posts=post).fetch_with_posts_count()
 

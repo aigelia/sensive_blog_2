@@ -14,7 +14,7 @@ class PostQuerySet(models.QuerySet):
         Используется в случае, если к запросу уже применены другие аннотации.
         Помогает избежать дублирования данных и ухудшения производительности."""
         posts = self
-        posts_ids = [post.id for post in posts]
+        posts_ids = [post.id for post in posts if post.id is not None]
         posts_with_comments = (
             Post.objects
             .filter(id__in=posts_ids)

@@ -61,11 +61,7 @@ def post_detail(request, slug):
         .annotate(likes_count=Count('likes')),
         slug=slug
     )
-    comments = (
-        Comment.objects
-        .filter(post=post)
-        .select_related('author')
-    )
+    comments = post.comments.select_related('author')
     serialized_comments = [
         {
             'text': comment.text,

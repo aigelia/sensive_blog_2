@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, OuterRef, Subquery
 from django.urls import reverse
 from django.contrib.auth.models import User
 
@@ -13,7 +13,10 @@ class PostQuerySet(models.QuerySet):
         """Добавляет к queryset количество комментариев к каждому посту.
         Используется в случае, если к запросу уже применены другие аннотации.
         Помогает избежать дублирования данных и ухудшения производительности."""
-        return self.annotate(comments_count=Count('comments'))
+        comments_subquery = Post.objects.filter(id=OuterRef('pk')).annotate(
+            comments_count=Count('comments')
+        ).values('comments_count')
+        return self.annotate(comments_count=Subquery(comments_subquery[:1]))
 
     def tag_prefetch(self):
         return self.prefetch_related(

@@ -70,7 +70,7 @@ def post_detail(request, slug):
         for comment in comments
     ]
 
-    related_tags = Tag.objects.filter(posts=post).fetch_with_posts_count()
+    related_tags = post.tags.fetch_with_posts_count()
 
     serialized_post = {
         'title': post.title,
